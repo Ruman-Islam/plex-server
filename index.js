@@ -122,7 +122,9 @@ const run = async () => {
         // http://localhost:5000/delete-order
         app.delete('/delete-order/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id);
+            const filter = { _id: ObjectId(id) };
+            const result = await bookingCollection.deleteOne(filter);
+            res.send(result);
         })
 
     } finally {
