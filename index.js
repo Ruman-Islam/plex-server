@@ -22,6 +22,7 @@ const run = async () => {
         const productCollection = client.db("PLEX").collection("products");
         const bookingCollection = client.db("PLEX").collection("bookings");
         const paymentCollection = client.db("PLEX").collection("payments");
+        const reviewCollection = client.db("PLEX").collection("reviews");
 
 
         // ? All products
@@ -118,13 +119,31 @@ const run = async () => {
         })
 
 
-        // ? My bookings
+        // ? Delete order
         // http://localhost:5000/delete-order
         app.delete('/delete-order/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
             const result = await bookingCollection.deleteOne(filter);
             res.send(result);
+        })
+
+
+        // ? Add review
+        // http://localhost:5000/add-review
+        app.post('/add-review', async (req, res) => {
+            const review = req.body;
+            const result = await reviewCollection.insertOne(review);
+            res.send({ success: true, result });
+        })
+
+
+        // ? Delete review
+        // http://localhost:5000/get-review
+        app.get('/get-review', async (req, res) => {
+            const query = req.query;
+            const reviews = await reviewCollection.find(query).toArray();
+            res.send({ success: true, reviews });
         })
 
     } finally {
