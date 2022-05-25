@@ -23,6 +23,7 @@ const run = async () => {
         const bookingCollection = client.db("PLEX").collection("bookings");
         const paymentCollection = client.db("PLEX").collection("payments");
         const reviewCollection = client.db("PLEX").collection("reviews");
+        const usersInfoCollection = client.db("PLEX").collection("usersInfo");
 
 
         // ? All products
@@ -144,6 +145,30 @@ const run = async () => {
             const query = req.query;
             const reviews = await reviewCollection.find(query).toArray();
             res.send({ success: true, reviews });
+        })
+
+
+        // ? Add user info
+        // http://localhost:5000/add-userInfo
+        app.put('/add-userInfo', async (req, res) => {
+            const email = req.query.email;
+            const userInfo = req.body;
+            const filter = { email: email };
+            const updatedDoc = { $set: { userInfo } };
+            const options = { upsert: true };
+            console.log(email, updatedDoc, options);
+            const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
+            res.send({ success: true, result });
+        })
+
+
+        // ? Get user info
+        // http://localhost:5000/get-userInfo
+        app.get('/get-userInfo', async (req, res) => {
+            const email = req.query.email;
+            const filter = { email: email };
+            const result = await usersInfoCollection.findOne(filter);
+            res.send({ success: true, result });
         })
 
     } finally {
