@@ -76,7 +76,7 @@ const run = async () => {
             const decodedEmail = req.decoded.email;
             if (decodedEmail === email) {
                 const user = await usersInfoCollection.findOne({ email: email });
-                const isAdmin = user.role === 'admin';
+                const isAdmin = user?.role === 'admin';
                 res.send({ admin: isAdmin });
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' })
@@ -237,7 +237,6 @@ const run = async () => {
         app.get('/products', async (req, res) => {
             const query = req.query;
             const result = await productCollection.find(query).toArray();
-            console.log(result.length);
             res.send(result);
         })
 
