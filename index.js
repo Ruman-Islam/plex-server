@@ -120,9 +120,12 @@ const run = async () => {
         app.delete('/delete-user/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const requesterEmail = req.params.email;
             const decodedEmail = req.decoded.email;
-            const query = req.body;
+            const filter = req.body;
+            if (filter.email === 'rumanislam0429@gmail.com') {
+                return res.send({ success: false, message: "Don't try to delete super admin!!" })
+            }
             if (decodedEmail === requesterEmail) {
-                const result = await usersInfoCollection.deleteOne(query);
+                const result = await usersInfoCollection.deleteOne(filter);
                 res.send({ success: true, result })
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' })
@@ -212,7 +215,7 @@ const run = async () => {
         })
 
 
-        // ? Delete order
+        // ? Delete product
         // http://localhost:5000/delete-product
         app.delete('/delete-product/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
