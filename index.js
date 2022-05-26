@@ -100,7 +100,7 @@ const run = async () => {
         })
 
 
-        // ? Delete admin
+        // ? Remove admin
         // http://localhost:5000/remove-admin/:email
         app.put('/remove-admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const requesterEmail = req.params.email;
@@ -188,7 +188,38 @@ const run = async () => {
             }
             if (decodedEmail === email) {
                 const result = await bookingCollection.updateOne(filter, updatedDoc);
-                console.log(result);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
+        })
+
+
+        // ? Delete order
+        // http://localhost:5000/delete-order
+        app.delete('/delete-order/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const { email } = req.body;
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const result = await bookingCollection.deleteOne(filter);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
+        })
+
+
+        // ? Delete order
+        // http://localhost:5000/delete-product
+        app.delete('/delete-product/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const { email } = req.body;
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const result = await productCollection.deleteOne(filter);
                 res.send({ success: true, result });
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' });
@@ -202,6 +233,7 @@ const run = async () => {
         app.get('/products', async (req, res) => {
             const query = req.query;
             const result = await productCollection.find(query).toArray();
+            console.log(result.length);
             res.send(result);
         })
 
