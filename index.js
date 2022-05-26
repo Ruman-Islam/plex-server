@@ -100,8 +100,22 @@ const run = async () => {
         })
 
 
+        // ? Delete admin
+        // http://localhost:5000/remove-admin/:email
+        app.put('/remove-admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
+            const requesterEmail = req.params.email;
+            const decodedEmail = req.decoded.email;
+            const filter = req.body;
+            if (decodedEmail === requesterEmail) {
+                const updatedDoc = { $set: { role: 'user' } };
+                const result = await usersInfoCollection.updateOne(filter, updatedDoc);
+                res.send(result);
+            }
+        })
+
+
         // ? Delete a user
-        // http://localhost:5000/delete-user
+        // http://localhost:5000/delete-user/:email
         app.delete('/delete-user/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const requesterEmail = req.params.email;
             const decodedEmail = req.decoded.email;
