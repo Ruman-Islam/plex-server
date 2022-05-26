@@ -129,20 +129,6 @@ const run = async () => {
         })
 
 
-        // // ? Get admins
-        // // http://localhost:5000/all-admin
-        // app.get('/all-admin', verifyJWT, verifyAdmin, async (req, res) => {
-        //     const email = req.query.email;
-        //     const decodedEmail = req.decoded.email;
-        //     if (decodedEmail === email) {
-        //         const users = await usersInfoCollection.find().toArray();
-        //         const admins = users.filter(admin => admin.role === 'admin');
-        //         res.send({ success: true, admins })
-        //     } else {
-        //         res.status(401).send({ success: false, message: 'Forbidden' });
-        //     }
-        // })
-
 
         // ? Get all users
         // http://localhost:5000/all-user
@@ -157,6 +143,20 @@ const run = async () => {
             }
         })
 
+
+        // ? Add product
+        // http://localhost:5000/add-product
+        app.post('/add-product', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            const productInfo = req.body;
+            if (decodedEmail === email) {
+                const result = await productCollection.insertOne(productInfo);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
+        })
         // ^ Admin works
 
 
@@ -318,3 +318,4 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
     console.log('Plex server is running on port -', port);
 })
+// https://mysterious-harbor-14588.herokuapp.com/
