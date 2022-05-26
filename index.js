@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-// const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -8,12 +8,33 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 
-// Middleware
+//? Middleware
 app.use(cors());
 app.use(express.json());
 
+
+// ? Database connection configuration
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.vzdnu.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+
+
+// ? Verify token function
+const verifyJWT = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send('Unauthorized Access')
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).send({ success: false, message: 'Forbidden Access' })
+        }
+        req.decoded = decoded;
+        console.log('he has token');
+        next();
+    });
+
+}
 
 
 const run = async () => {
@@ -24,6 +45,105 @@ const run = async () => {
         const paymentCollection = client.db("PLEX").collection("payments");
         const reviewCollection = client.db("PLEX").collection("reviews");
         const usersInfoCollection = client.db("PLEX").collection("usersInfo");
+
+        // ? Admin Verifier
+        const verifyAdmin = async (req, res, next) => {
+            const requester = req.decoded.email;
+            const requesterAccount = await usersInfoCollection.findOne({ email: requester });
+            if (requesterAccount.role === 'admin') {
+                console.log('is he is admin');
+                next();
+            } else {
+                res.status(403).send({ success: false, message: 'Forbidden' })
+            }
+        }
+
+
+        // ? Generate JWT
+        app.put('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const updatedDoc = { $set: { userInfo: { email: email } } };
+            const options = { upsert: true };
+            const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
+            const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
+            res.send({ result, accessToken: token });
+        })
+
+
+        // ? Verify Admin
+        // http://localhost:5000/admin/:email
+        app.get('/admin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const user = await usersInfoCollection.findOne({ email: email });
+                const isAdmin = user.role === 'admin';
+                res.send({ admin: isAdmin });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' })
+            }
+        })
+
+        // ^ Admin works
+        // ? Make admin
+        // http://localhost:5000/add-admin/:email
+        app.put('/add-admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
+            const requesterEmail = req.params.email;
+            const decodedEmail = req.decoded.email;
+            const filter = req.body;
+            if (decodedEmail === requesterEmail) {
+                const updatedDoc = { $set: { role: 'admin' } };
+                const result = await usersInfoCollection.updateOne(filter, updatedDoc);
+                res.send(result);
+            }
+        })
+
+
+        // ? Delete a user
+        // http://localhost:5000/delete-user
+        app.delete('/delete-user/:email', verifyJWT, verifyAdmin, async (req, res) => {
+            const requesterEmail = req.params.email;
+            const decodedEmail = req.decoded.email;
+            const query = req.body;
+            if (decodedEmail === requesterEmail) {
+                const result = await usersInfoCollection.deleteOne(query);
+                res.send({ success: true, result })
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' })
+            }
+        })
+
+
+        // // ? Get admins
+        // // http://localhost:5000/all-admin
+        // app.get('/all-admin', verifyJWT, verifyAdmin, async (req, res) => {
+        //     const email = req.query.email;
+        //     const decodedEmail = req.decoded.email;
+        //     if (decodedEmail === email) {
+        //         const users = await usersInfoCollection.find().toArray();
+        //         const admins = users.filter(admin => admin.role === 'admin');
+        //         res.send({ success: true, admins })
+        //     } else {
+        //         res.status(401).send({ success: false, message: 'Forbidden' });
+        //     }
+        // })
+
+
+        // ? Get all users
+        // http://localhost:5000/all-user
+        app.get('/all-user', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const users = await usersInfoCollection.find().toArray();
+                res.send({ success: true, users })
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' })
+            }
+        })
+
+        // ^ Admin works
 
 
         // ? All products
@@ -108,7 +228,7 @@ const run = async () => {
 
         // ? My bookings
         // http://localhost:5000/my-orders
-        app.get('/my-orders', async (req, res) => {
+        app.get('/user/my-orders', async (req, res) => {
             const email = req.query.email;
             const query = { email: email }
             const orders = await bookingCollection.find(query).toArray();
@@ -156,7 +276,6 @@ const run = async () => {
             const filter = { email: email };
             const updatedDoc = { $set: { userInfo } };
             const options = { upsert: true };
-            console.log(email, updatedDoc, options);
             const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
             res.send({ success: true, result });
         })
