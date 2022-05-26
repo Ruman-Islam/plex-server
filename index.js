@@ -30,7 +30,6 @@ const verifyJWT = async (req, res, next) => {
             return res.status(403).send({ success: false, message: 'Forbidden Access' })
         }
         req.decoded = decoded;
-        console.log('he has token');
         next();
     });
 
@@ -51,7 +50,6 @@ const run = async () => {
             const requester = req.decoded.email;
             const requesterAccount = await usersInfoCollection.findOne({ email: requester });
             if (requesterAccount.role === 'admin') {
-                console.log('is he is admin');
                 next();
             } else {
                 res.status(403).send({ success: false, message: 'Forbidden' })
@@ -106,10 +104,13 @@ const run = async () => {
             const requesterEmail = req.params.email;
             const decodedEmail = req.decoded.email;
             const filter = req.body;
+            if (filter.email === 'rumanislam0429@gmail.com') {
+                return res.send({ success: false, message: "Don't try to remove super admin!!" })
+            }
             if (decodedEmail === requesterEmail) {
                 const updatedDoc = { $set: { role: 'user' } };
                 const result = await usersInfoCollection.updateOne(filter, updatedDoc);
-                res.send(result);
+                res.send({ success: true, result });
             }
         })
 
