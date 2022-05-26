@@ -157,6 +157,43 @@ const run = async () => {
                 res.status(401).send({ success: false, message: 'Forbidden' });
             }
         })
+
+
+        // ? Get all orders
+        // http://localhost:5000/all-order
+        app.get('/all-orders', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const result = await bookingCollection.find().toArray();
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
+        })
+
+
+
+        // ? Shipment update
+        // http://localhost:5000/shipment-update
+        app.put('/shipment-update/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const { email } = req.body;
+            const decodedEmail = req.decoded.email;
+            const updatedDoc = {
+                $set: {
+                    deliveryStatus: true
+                }
+            }
+            if (decodedEmail === email) {
+                const result = await bookingCollection.updateOne(filter, updatedDoc);
+                console.log(result);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
+        })
         // ^ Admin works
 
 
