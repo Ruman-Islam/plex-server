@@ -58,14 +58,17 @@ const run = async () => {
 
 
         // ? Generate JWT
-        app.put('/user/:email', async (req, res) => {
+        // http://localhost:5000/admin/:email
+        app.post('/user/:email', async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
-            const updatedDoc = { $set: { userInfo: { email: email } } };
-            const options = { upsert: true };
-            const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
+            const result = await usersInfoCollection.findOne(filter);
+            if (!result) {
+                const updatedDoc = { $set: { userInfo: { email: email } } };
+                const result = await usersInfoCollection.insertOne(updatedDoc);
+            }
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
-            res.send({ result, accessToken: token });
+            res.send({ accessToken: token });
         })
 
 
@@ -76,7 +79,7 @@ const run = async () => {
             const decodedEmail = req.decoded.email;
             if (decodedEmail === email) {
                 const user = await usersInfoCollection.findOne({ email: email });
-                const isAdmin = user.role === 'admin';
+                const isAdmin = user?.role === 'admin';
                 res.send({ admin: isAdmin });
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' })
@@ -237,7 +240,6 @@ const run = async () => {
         app.get('/products', async (req, res) => {
             const query = req.query;
             const result = await productCollection.find(query).toArray();
-            console.log(result.length);
             res.send(result);
         })
 
@@ -328,9 +330,10 @@ const run = async () => {
 
 
         // ? Delete order
-        // http://localhost:5000/delete-order
-        app.delete('/delete-order/:id', async (req, res) => {
+        // http://localhost:5000/delete-my-order
+        app.delete('/delete-my-order/:id', async (req, res) => {
             const id = req.params.id;
+            console.log(id);
             const filter = { _id: ObjectId(id) };
             const result = await bookingCollection.deleteOne(filter);
             res.send(result);
