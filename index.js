@@ -62,9 +62,10 @@ const run = async () => {
         app.post('/user/:email', async (req, res) => {
             const email = req.params.email;
             const filter = { email: email };
+            const userInfo = req.body;
             const result = await usersInfoCollection.findOne(filter);
             if (!result) {
-                const result = await usersInfoCollection.insertOne({ email: email });
+                const result = await usersInfoCollection.insertOne(userInfo);
             }
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
             res.send({ accessToken: token });
@@ -93,7 +94,6 @@ const run = async () => {
             const decodedEmail = req.decoded.email;
             const filter = req.body;
             if (decodedEmail === requesterEmail) {
-                console.log(decodedEmail, email);
                 const updatedDoc = { $set: { role: 'admin' } };
                 const result = await usersInfoCollection.updateOne(filter, updatedDoc);
                 res.send(result);
@@ -288,9 +288,8 @@ const run = async () => {
         // http://localhost:5000/booking/${_id}`
         app.patch('/booking/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id);
             const payment = req.body;
-            const filter = { productId: id };
+            const filter = { _id: ObjectId(id) };
             const updatedDoc = {
                 $set: {
                     paymentStatus: true,
@@ -334,16 +333,6 @@ const run = async () => {
             const query = { _id: ObjectId(id) };
             const bookedProduct = await bookingCollection.findOne(query);
             return res.send(bookedProduct);
-
-
-            // const exists = await bookingCollection.findOne(query);
-            // if (exists) {
-            //     return res.send({ success: false, booking: exists })
-            // } else {
-            //     const result = await bookingCollection.insertOne(booking);
-            //     // sendAppointmentEmail(booking);
-            //     return res.send({ success: true, result });
-            // }
         })
 
 
@@ -396,7 +385,7 @@ const run = async () => {
             const email = req.query.email;
             const userInfo = req.body;
             const filter = { email: email };
-            const updatedDoc = { $set: { userInfo } };
+            const updatedDoc = { $set: userInfo };
             const options = { upsert: true };
             const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
             res.send({ success: true, result });
