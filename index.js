@@ -63,10 +63,7 @@ const run = async () => {
             const email = req.params.email;
             const filter = { email: email };
             const result = await usersInfoCollection.findOne(filter);
-            console.log(result, email);
             if (!result) {
-                console.log('dhukse');
-                // const updatedDoc = { $set: { email: email } };
                 const result = await usersInfoCollection.insertOne({ email: email });
             }
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
@@ -96,6 +93,7 @@ const run = async () => {
             const decodedEmail = req.decoded.email;
             const filter = req.body;
             if (decodedEmail === requesterEmail) {
+                console.log(decodedEmail, email);
                 const updatedDoc = { $set: { role: 'admin' } };
                 const result = await usersInfoCollection.updateOne(filter, updatedDoc);
                 res.send(result);
@@ -237,6 +235,17 @@ const run = async () => {
         // ^ Admin works
 
 
+        // ? Get current user
+        // http://localhost:5000/current-user/:email
+        app.get('/current-user/:email', async (req, res) => {
+            const email = req.params.email;
+            const filter = { email: email };
+            const result = await usersInfoCollection.findOne(filter);
+            console.log(result);
+            res.send({ success: true, result });
+        })
+
+
         // ? All products
         // http://localhost:5000/products
         app.get('/products', async (req, res) => {
@@ -279,6 +288,7 @@ const run = async () => {
         // http://localhost:5000/booking/${_id}`
         app.patch('/booking/:id', async (req, res) => {
             const id = req.params.id;
+            console.log(id);
             const payment = req.body;
             const filter = { productId: id };
             const updatedDoc = {
@@ -314,6 +324,26 @@ const run = async () => {
                 // sendAppointmentEmail(booking);
                 return res.send({ success: true, result });
             }
+        })
+
+
+        // ? get booking product
+        // http://localhost:5000/book-product/id
+        app.get('/book-product/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const bookedProduct = await bookingCollection.findOne(query);
+            return res.send(bookedProduct);
+
+
+            // const exists = await bookingCollection.findOne(query);
+            // if (exists) {
+            //     return res.send({ success: false, booking: exists })
+            // } else {
+            //     const result = await bookingCollection.insertOne(booking);
+            //     // sendAppointmentEmail(booking);
+            //     return res.send({ success: true, result });
+            // }
         })
 
 
