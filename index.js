@@ -182,6 +182,8 @@ const run = async () => {
         app.get('/all-orders', verifyJWT, verifyAdmin, async (req, res) => {
             let paidBookings = [];
             let unpaidBookings = [];
+            let shippedBookings = [];
+            let unShippedBookings = [];
             const email = req.query.email;
             const decodedEmail = req.decoded.email;
             if (decodedEmail === email) {
@@ -194,7 +196,15 @@ const run = async () => {
                     }
                 }
                 const allBookings = unpaidBookings.concat(paidBookings);
-                res.send({ success: true, allBookings });
+                for (const booking of allBookings) {
+                    if (booking.deliveryStatus) {
+                        shippedBookings.push(booking)
+                    } else {
+                        unShippedBookings.push(booking)
+                    }
+                }
+                const allSortedBookings = unShippedBookings.concat(shippedBookings);
+                res.send({ success: true, allSortedBookings });
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' });
             }
