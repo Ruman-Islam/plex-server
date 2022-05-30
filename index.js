@@ -92,11 +92,13 @@ const run = async () => {
         app.put('/add-admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const requesterEmail = req.params.email;
             const decodedEmail = req.decoded.email;
-            const filter = req.body;
+            const { data: email } = req.body;
             if (decodedEmail === requesterEmail) {
                 const updatedDoc = { $set: { role: 'admin' } };
-                const result = await usersInfoCollection.updateOne(filter, updatedDoc);
-                res.send(result);
+                const result = await usersInfoCollection.updateOne(email, updatedDoc);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' })
             }
         })
 
@@ -106,14 +108,16 @@ const run = async () => {
         app.put('/remove-admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
             const requesterEmail = req.params.email;
             const decodedEmail = req.decoded.email;
-            const filter = req.body;
-            if (filter.email === 'rumanislam0429@gmail.com') {
-                return res.send({ success: false, message: "Don't try to remove super admin!!" })
+            const { data: email } = req.body;
+            if (email.email === 'rumanislam0429@gmail.com') {
+                return res.status(403).send({ success: false, message: "Don't try to remove super admin!!" })
             }
             if (decodedEmail === requesterEmail) {
                 const updatedDoc = { $set: { role: 'user' } };
-                const result = await usersInfoCollection.updateOne(filter, updatedDoc);
+                const result = await usersInfoCollection.updateOne(email, updatedDoc);
                 res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' })
             }
         })
 
@@ -125,7 +129,7 @@ const run = async () => {
             const decodedEmail = req.decoded.email;
             const filter = req.body;
             if (filter.email === 'rumanislam0429@gmail.com') {
-                return res.send({ success: false, message: "Don't try to delete super admin!!" })
+                return res.status(403).send({ success: false, message: "Don't try to delete super admin!!" })
             }
             if (decodedEmail === requesterEmail) {
                 const result = await usersInfoCollection.deleteOne(filter);
@@ -144,7 +148,14 @@ const run = async () => {
             const decodedEmail = req.decoded.email;
             if (decodedEmail === email) {
                 const users = await usersInfoCollection.find().toArray();
-                res.send({ success: true, users })
+                const sortedUsers = users.sort((a, b) => {
+                    let x = a.role.toLowerCase();
+                    let y = b.role.toLowerCase();
+                    if (x < y) { return -1; }
+                    if (x > y) { return 1; }
+                    return 0;
+                });
+                res.send({ success: true, sortedUsers })
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' })
             }
@@ -169,11 +180,21 @@ const run = async () => {
         // ? Get all orders
         // http://localhost:5000/all-order
         app.get('/all-orders', verifyJWT, verifyAdmin, async (req, res) => {
+            let paidBookings = [];
+            let unpaidBookings = [];
             const email = req.query.email;
             const decodedEmail = req.decoded.email;
             if (decodedEmail === email) {
                 const result = await bookingCollection.find().toArray();
-                res.send({ success: true, result });
+                for (const element of result) {
+                    if (element.paymentStatus) {
+                        paidBookings.push(element);
+                    } else {
+                        unpaidBookings.push(element)
+                    }
+                }
+                const allBookings = unpaidBookings.concat(paidBookings);
+                res.send({ success: true, allBookings });
             } else {
                 res.status(401).send({ success: false, message: 'Forbidden' });
             }
@@ -186,7 +207,7 @@ const run = async () => {
         app.put('/shipment-update/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) }
-            const { email } = req.body;
+            const { data: { email } } = req.body;
             const decodedEmail = req.decoded.email;
             const updatedDoc = {
                 $set: {
@@ -241,7 +262,6 @@ const run = async () => {
             const email = req.params.email;
             const filter = { email: email };
             const result = await usersInfoCollection.findOne(filter);
-            console.log(result);
             res.send({ success: true, result });
         })
 
@@ -251,7 +271,10 @@ const run = async () => {
         app.get('/products', async (req, res) => {
             const query = req.query;
             const result = await productCollection.find(query).toArray();
-            res.send(result);
+            const sortedProducts = result.sort((a, b) => {
+                return b.productPrice - a.productPrice;
+            })
+            res.send(sortedProducts);
         })
 
 
@@ -303,26 +326,33 @@ const run = async () => {
         })
 
 
+        // ? Payment post
+        // http://localhost:5000/booking/${_id}`
+        app.post('/payment-post/:id', async (req, res) => {
+            const id = req.params.id;
+            const bookedProduct = req.body;
+            const filter = { _id: ObjectId(id) };
+            const result = await bookingCollection.findOne(filter);
+            if (!result) {
+                const result = await bookingCollection.insertOne(bookedProduct);
+                const payment = await paymentCollection.insertOne({
+                    product: bookedProduct.productId,
+                    transactionId: bookedProduct.transactionId,
+                    name: bookedProduct.name,
+                    email: bookedProduct.email,
+                    productQuantity: bookedProduct.productQuantity
+                });
+                res.send({ paymentStatus: true });
+            }
+        })
+
+
         // ? Add booking product
         // http://localhost:5000/book-product
         app.post('/book-product', async (req, res) => {
             const booking = req.body;
-            const query = {
-                name: booking.name,
-                email: booking.email,
-                productName: booking.productName,
-                price: booking.price,
-                date: booking.date
-            }
-
-            const exists = await bookingCollection.findOne(query);
-            if (exists) {
-                return res.send({ success: false, booking: exists })
-            } else {
-                const result = await bookingCollection.insertOne(booking);
-                // sendAppointmentEmail(booking);
-                return res.send({ success: true, result });
-            }
+            const result = await bookingCollection.insertOne(booking);
+            res.send({ success: true, result });
         })
 
 
@@ -338,15 +368,19 @@ const run = async () => {
 
         // ? My bookings
         // http://localhost:5000/my-orders
-        app.get('/user/my-orders', async (req, res) => {
+        app.get('/user/my-orders', verifyJWT, async (req, res) => {
             const email = req.query.email;
-            const query = { email: email }
-            const orders = await bookingCollection.find(query).toArray();
-            if (!(orders.length === 0)) {
-                res.send({ success: true, orders })
-            } else {
-                res.send({ success: false, message: 'No orders' })
+            const decodedEmail = req.decoded.email;
+            const query = { email: email };
+            if (decodedEmail === email) {
+                const orders = await bookingCollection.find(query).toArray();
+                if (!(orders.length === 0)) {
+                    res.send({ success: true, orders })
+                } else {
+                    res.status(401).send({ success: false, message: 'Forbidden' });
+                }
             }
+
         })
 
 
@@ -354,7 +388,6 @@ const run = async () => {
         // http://localhost:5000/delete-my-order
         app.delete('/delete-my-order/:id', async (req, res) => {
             const id = req.params.id;
-            console.log(id);
             const filter = { _id: ObjectId(id) };
             const result = await bookingCollection.deleteOne(filter);
             res.send(result);
@@ -381,24 +414,34 @@ const run = async () => {
 
         // ? Add user info
         // http://localhost:5000/add-userInfo
-        app.put('/add-userInfo', async (req, res) => {
+        app.put('/add-userInfo', verifyJWT, async (req, res) => {
             const email = req.query.email;
-            const userInfo = req.body;
-            const filter = { email: email };
-            const updatedDoc = { $set: userInfo };
-            const options = { upsert: true };
-            const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
-            res.send({ success: true, result });
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const { data } = req.body;
+                const filter = { email: email };
+                const updatedDoc = { $set: data };
+                const options = { upsert: true };
+                const result = await usersInfoCollection.updateOne(filter, updatedDoc, options);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
         })
 
 
         // ? Get user info
         // http://localhost:5000/get-userInfo
-        app.get('/get-userInfo', async (req, res) => {
+        app.get('/get-userInfo', verifyJWT, async (req, res) => {
             const email = req.query.email;
-            const filter = { email: email };
-            const result = await usersInfoCollection.findOne(filter);
-            res.send({ success: true, result });
+            const decodedEmail = req.decoded.email;
+            if (decodedEmail === email) {
+                const filter = { email: email };
+                const result = await usersInfoCollection.findOne(filter);
+                res.send({ success: true, result });
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
+            }
         })
 
     } finally {
