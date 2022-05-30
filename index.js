@@ -374,11 +374,9 @@ const run = async () => {
             const query = { email: email };
             if (decodedEmail === email) {
                 const orders = await bookingCollection.find(query).toArray();
-                if (!(orders.length === 0)) {
-                    res.send({ success: true, orders })
-                } else {
-                    res.status(401).send({ success: false, message: 'Forbidden' });
-                }
+                res.send({ success: true, orders })
+            } else {
+                res.status(401).send({ success: false, message: 'Forbidden' });
             }
 
         })
