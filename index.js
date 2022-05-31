@@ -66,6 +66,7 @@ const run = async () => {
             const result = await usersInfoCollection.findOne(filter);
             if (!result) {
                 const result = await usersInfoCollection.insertOne(userInfo);
+                return;
             }
             const token = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
             res.send({ accessToken: token });
